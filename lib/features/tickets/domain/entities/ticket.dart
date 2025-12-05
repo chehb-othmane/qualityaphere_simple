@@ -1,0 +1,17 @@
+enum TicketStatus { open, inProgress, resolved }
+
+class Ticket {
+  final String id;
+  final String title;
+  final String description;
+  final TicketStatus status;
+  final DateTime createdAt;
+
+  Ticket({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.status,
+    required this.createdAt,
+  });
+}
