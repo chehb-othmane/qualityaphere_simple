@@ -46,6 +46,11 @@ class _SignupPageState extends State<SignupPage> {
     return Scaffold(
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
+          if (state.status == AuthStatus.authenticated) {
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/dashboard', (route) => false);
+          }
           if (state.status == AuthStatus.failure && state.message != null) {
             ScaffoldMessenger.of(
               context,
