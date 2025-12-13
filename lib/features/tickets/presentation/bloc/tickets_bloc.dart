@@ -1,88 +1,78 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/usecases/usecase.dart';
-import '../../domain/usecases/get_tickets.dart';
+import '../../domain/entities/ticket.dart';
+import '../../domain/usecases/watch_tickets.dart';
 import '../../domain/usecases/create_ticket.dart';
 import '../../domain/usecases/update_ticket_status.dart';
-import '../../domain/usecases/sync_tickets.dart';
+
 import 'tickets_event.dart';
 import 'tickets_state.dart';
 
 class TicketsBloc extends Bloc<TicketsEvent, TicketsState> {
-  final GetTickets getTicketsUseCase;
+  final WatchTickets watchTickets;
   final CreateTicket createTicketUseCase;
   final UpdateTicketStatus updateTicketStatusUseCase;
-  final SyncTickets syncTicketsUseCase;
+
+  StreamSubscription<List<Ticket>>? _sub;
 
   TicketsBloc({
-    required this.getTicketsUseCase,
+    required this.watchTickets,
     required this.createTicketUseCase,
     required this.updateTicketStatusUseCase,
-    required this.syncTicketsUseCase,
   }) : super(const TicketsState()) {
-    on<LoadTickets>(_onLoadTickets);
-    on<CreateTicketRequested>(_onCreateTicketRequested);
-    on<UpdateTicketStatusRequested>(_onUpdateTicketStatusRequested);
-    on<SyncTicketsRequested>(_onSyncTicketsRequested);
+    on<StartTicketsStream>(_onStartStream);
+    on<TicketsUpdated>(_onTicketsUpdated);
+
+    on<CreateTicketRequested>(_onCreateTicket);
+    on<UpdateTicketStatusRequested>(_onUpdateStatus);
   }
 
-  Future<void> _onLoadTickets(
-    LoadTickets event,
-    Emitter<TicketsState> emit,
-  ) async {
+  void _onStartStream(StartTicketsStream event, Emitter<TicketsState> emit) {
     emit(state.copyWith(isLoading: true, error: null));
-    try {
-      final tickets = await getTicketsUseCase(NoParams());
-      emit(state.copyWith(isLoading: false, tickets: tickets));
-    } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
-    }
+    _sub?.cancel();
+    _sub = watchTickets().listen(
+      (tickets) => add(TicketsUpdated(tickets)),
+      onError: (e) => addError(e),
+    );
   }
 
-  Future<void> _onCreateTicketRequested(
+  void _onTicketsUpdated(TicketsUpdated event, Emitter<TicketsState> emit) {
+    emit(state.copyWith(isLoading: false, tickets: event.tickets, error: null));
+  }
+
+  Future<void> _onCreateTicket(
     CreateTicketRequested event,
     Emitter<TicketsState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, error: null));
     try {
-      final newTicket = await createTicketUseCase(
+      await createTicketUseCase(
         CreateTicketParams(title: event.title, description: event.description),
       );
-      final updated = List.of(state.tickets)..add(newTicket);
-      emit(state.copyWith(isLoading: false, tickets: updated));
+      // No manual reload: stream will update automatically
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(error: e.toString()));
     }
   }
 
-  Future<void> _onUpdateTicketStatusRequested(
+  Future<void> _onUpdateStatus(
     UpdateTicketStatusRequested event,
     Emitter<TicketsState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, error: null));
     try {
-      final updatedTicket = await updateTicketStatusUseCase(
+      await updateTicketStatusUseCase(
         UpdateTicketStatusParams(id: event.id, status: event.status),
       );
-      final updatedList = state.tickets
-          .map((t) => t.id == updatedTicket.id ? updatedTicket : t)
-          .toList();
-      emit(state.copyWith(isLoading: false, tickets: updatedList));
+      // stream updates automatically
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(error: e.toString()));
     }
   }
 
-  Future<void> _onSyncTicketsRequested(
-    SyncTicketsRequested event,
-    Emitter<TicketsState> emit,
-  ) async {
-    emit(state.copyWith(isLoading: true, error: null));
-    try {
-      final tickets = await syncTicketsUseCase(NoParams());
-      emit(state.copyWith(isLoading: false, tickets: tickets));
-    } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
-    }
+  @override
+  Future<void> close() {
+    _sub?.cancel();
+    return super.close();
   }
 }

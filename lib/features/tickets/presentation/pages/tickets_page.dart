@@ -75,14 +75,6 @@ class TicketsPage extends StatelessWidget {
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FloatingActionButton.extended(
-            heroTag: 'sync',
-            onPressed: () {
-              context.read<TicketsBloc>().add(SyncTicketsRequested());
-            },
-            label: const Text('Sync API'),
-            icon: const Icon(Icons.cloud_download),
-          ),
           const SizedBox(height: 12),
           FloatingActionButton(
             heroTag: 'add',

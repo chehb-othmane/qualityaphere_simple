@@ -29,3 +29,12 @@ class UpdateTicketStatusRequested extends TicketsEvent {
 }
 
 class SyncTicketsRequested extends TicketsEvent {}
+
+class StartTicketsStream extends TicketsEvent {}
+
+class TicketsUpdated extends TicketsEvent {
+  final List<Ticket> tickets;
+  TicketsUpdated(this.tickets);
+  @override
+  List<Object?> get props => [tickets];
+}

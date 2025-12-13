@@ -4,9 +4,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'app.dart';
 import 'injection_container.dart' as di;
 import 'features/auth/data/datasources/auth_local_data_source.dart';
-
-import 'features/tickets/data/datasources/tickets_local_data_source.dart';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -31,7 +28,7 @@ Future<void> main() async {
   await Hive.initFlutter();
   // Open users box
   await Hive.openBox(AuthLocalDataSourceImpl.usersBoxName);
-  await Hive.openBox(TicketsLocalDataSourceImpl.ticketsBoxName);
+
   await _seedAdminUser();
   await di.init();
   runApp(const QualitySphereApp());

@@ -22,7 +22,9 @@ class QualitySphereApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => sl<AuthBloc>()..add(AuthStarted())),
-        BlocProvider(create: (_) => sl<TicketsBloc>()..add(LoadTickets())),
+        BlocProvider(
+          create: (_) => sl<TicketsBloc>()..add(StartTicketsStream()),
+        ),
       ],
       child: MaterialApp(
         title: 'QualitySphere',

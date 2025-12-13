@@ -4,7 +4,9 @@ import '../models/ticket_model.dart';
 import '../../domain/entities/ticket.dart';
 
 abstract class TicketsRemoteDataSource {
-  Future<List<TicketModel>> fetchTicketsFromApi();
+  Stream<List<TicketModel>> watchTickets();
+  Future<TicketModel> createTicket(String title, String description);
+  Future<TicketModel> updateTicketStatus(String id, TicketStatus status);
 }
 
 class TicketsRemoteDataSourceImpl implements TicketsRemoteDataSource {
@@ -12,52 +14,75 @@ class TicketsRemoteDataSourceImpl implements TicketsRemoteDataSource {
 
   TicketsRemoteDataSourceImpl({required this.firestore});
 
+  CollectionReference<Map<String, dynamic>> get _col =>
+      firestore.collection('tickets');
+
+  TicketStatus _statusFromString(String value) {
+    switch (value) {
+      case 'inProgress':
+        return TicketStatus.inProgress;
+      case 'resolved':
+        return TicketStatus.resolved;
+      default:
+        return TicketStatus.open;
+    }
+  }
+
   @override
-  Future<List<TicketModel>> fetchTicketsFromApi() async {
-    try {
-      // Collection "tickets" f Firestore
-      final querySnapshot = await firestore.collection('tickets').get();
-
-      final docs = querySnapshot.docs;
-
-      return docs.map((doc) {
+  Stream<List<TicketModel>> watchTickets() {
+    return _col.orderBy('createdAt', descending: true).snapshots().map((
+      snapshot,
+    ) {
+      return snapshot.docs.map((doc) {
         final data = doc.data();
 
-        // status string -> enum
-        final String statusString = (data['status'] as String?) ?? 'open';
-
-        TicketStatus status;
-        switch (statusString) {
-          case 'inProgress':
-            status = TicketStatus.inProgress;
-            break;
-          case 'resolved':
-            status = TicketStatus.resolved;
-            break;
-          case 'open':
-          default:
-            status = TicketStatus.open;
-        }
-
-        // createdAt: Timestamp -> DateTime
-        DateTime createdAt;
         final createdAtField = data['createdAt'];
-        if (createdAtField is Timestamp) {
-          createdAt = createdAtField.toDate();
-        } else {
-          createdAt = DateTime.now();
-        }
+        final createdAt = createdAtField is Timestamp
+            ? createdAtField.toDate()
+            : DateTime.now();
 
         return TicketModel(
-          id: doc.id, // id dyal Firestore
-          title: (data['title'] as String?) ?? 'Untitled ticket',
-          description: (data['description'] as String?) ?? 'No description',
-          status: status,
+          id: doc.id,
+          title: data['title'] ?? 'Untitled',
+          description: data['description'] ?? '',
+          status: _statusFromString(data['status'] ?? 'open'),
           createdAt: createdAt,
         );
       }).toList();
-    } catch (e) {
-      throw Exception('Firestore error while fetching tickets: $e');
-    }
+    });
+  }
+
+  @override
+  Future<TicketModel> createTicket(String title, String description) async {
+    final doc = await _col.add({
+      'title': title,
+      'description': description,
+      'status': TicketStatus.open.name,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    final snap = await doc.get();
+    final data = snap.data()!;
+    return TicketModel(
+      id: snap.id,
+      title: data['title'],
+      description: data['description'],
+      status: TicketStatus.open,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<TicketModel> updateTicketStatus(String id, TicketStatus status) async {
+    await _col.doc(id).update({'status': status.name});
+    final snap = await _col.doc(id).get();
+    final data = snap.data()!;
+    return TicketModel(
+      id: snap.id,
+      title: data['title'],
+      description: data['description'],
+      status: _statusFromString(data['status']),
+      createdAt: DateTime.now(),
+    );
   }
 }
