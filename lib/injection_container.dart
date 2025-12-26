@@ -28,7 +28,7 @@ Future<void> init() async {
   final sharedPreferences = await SharedPreferences.getInstance();
   sl.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
 
-  // ✅ FirebaseFirestore REGISTERED ONCE
+  // FirebaseFirestore REGISTERED ONCE
   sl.registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);
 
   // --------------------
